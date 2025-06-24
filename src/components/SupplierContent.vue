@@ -57,7 +57,7 @@
                           </v-col>
                           <v-col cols="12" md="3">
                             <v-checkbox v-for="num in selectedShipmentsNum" :key="num" density="compact"
-                              v-model="selectedShipmentsArr" :label="`Partia ${num}`" :value="num"
+                              v-model="selectedCheckboxesArr" :label="`Partia ${num}`" :value="num"
                               hide-details></v-checkbox>
                           </v-col>
                         </v-row>
@@ -99,8 +99,8 @@
                 <div v-show="expandedOrderID === item.orderID">
                   <v-card-text>
                     <v-col cols="12" md="5" class="d-flex align-center">
-                      <v-text-field density="prominent" label="Wprowadź zmiany dla wybranej partii" variant="solo"
-                        hide-details single-line @click:append-inner="onClick" class="flex-grow-1"></v-text-field>
+                      <v-text-field density="comfortable" label="Wprowadź zmiany dla wybranej partii" variant="solo"
+                        hide-details single-line class="flex-grow-1"></v-text-field>
                       <v-btn class="ml-4" aria-label="Refresh" icon="mdi-check"></v-btn>
                     </v-col>
                   </v-card-text>
@@ -142,9 +142,12 @@ const ordersData = ref([]);
 const loading = useLoadingStore();
 const router = useRouter();
 const expandedOrderID = ref(null);
-const shipmentsNum = Array.from({ length: 5 }, (_, i) => ({ text: (i + 1).toString(), value: i + 1 }));
-const selectedShipmentsNum = ref(1)
-const selectedShipmentsArr = ref([])
+const shipmentsNum = Array.from({ length: 5 }, (_, i) => ({
+  text: i === 0 ? null : (i + 1).toString(),
+  value: i === 0 ? null : i + 1
+}));
+const selectedShipmentsNum = ref(null)
+const selectedCheckboxesArr = ref([])
 const toggleDetails = (orderID) => {
   expandedOrderID.value = expandedOrderID.value === orderID ? null : orderID;
 };
@@ -162,17 +165,27 @@ const getOrders = async () => {
   };
 };
 
-watch(selectedShipmentsArr, (newSelectedShipmentsNum) => {
+watch(selectedShipmentsNum, (newVal) => {
+  console.log(selectedCheckboxesArr.value);
+  selectedCheckboxesArr.value = selectedCheckboxesArr.value.filter(item => item <= newVal);
+});
+
+watch(selectedCheckboxesArr, (shipsCalculate) => {
   setTimeout(() => {
-    progress.value = newSelectedShipmentsNum.length * 20;
-    console.log(progress.value);
+    const max = selectedShipmentsNum.value;
+    if (!max) {
+      progress.value = 0;
+      return;
+    }
+    const count = shipsCalculate.length > max ? max : shipsCalculate.length;
+    progress.value = Math.round((count / max) * 100);
   }, 250);
 }, { deep: true });
 
 onMounted(() => {
   getOrders();
   setTimeout(() => {
-    progress.value = selectedShipmentsArr.value * 20;
+    progress.value = selectedCheckboxesArr.value * 20;
   }, 500);
 });
 </script>
