@@ -11,11 +11,12 @@
               <v-card-item>
                 <v-card-title>Status zamówienia:</v-card-title>
                 <v-card-text>Otwarte, w trakcie realizacji</v-card-text>
-                <v-card-text class="text-green font-weight-bold">Proces wykończenia zamówienia: {{ progress
-                }}%</v-card-text>
+                <v-card-text class="text-green font-weight-bold">Proces wykończenia zamówienia: {{
+                  progressMap[item.orderID] || 0 }}%</v-card-text>
               </v-card-item>
               <v-card-item>
-                <v-progress-linear color="green" rounded :model-value="progress" :height="10"></v-progress-linear>
+                <v-progress-linear color="green" rounded :model-value="progressMap[item.orderID] || 0"
+                  :height="10"></v-progress-linear>
               </v-card-item>
               <v-card-item>
                 <v-table density="compact">
@@ -49,16 +50,15 @@
                       <td>{{ product.quantity }}</td>
                       <td>90000 zł</td>
                       <td>
-                        <!-- todo -->
                         <v-row align="center" no-gutters>
                           <v-col cols="12" md="3">
-                            <v-select :items="shipmentsNum" v-model="selectedShipmentsNum" item-title="text"
-                              item-value="value" variant="solo-filled"></v-select>
+                            <v-select :items="shipmentsNum" v-model="selectedShipmentsNumMap[item.orderID]"
+                              item-title="text" item-value="value" variant="solo-filled" dense></v-select>
                           </v-col>
-                          <v-col cols="12" md="3">
-                            <v-checkbox v-for="num in selectedShipmentsNum" :key="num" density="compact"
-                              v-model="selectedCheckboxesArr" :label="`Partia ${num}`" :value="num"
-                              hide-details></v-checkbox>
+                          <v-col cols="12" md="9">
+                            <v-checkbox v-for="num in selectedShipmentsNumMap[item.orderID]" :key="num"
+                              density="compact" v-model="selectedCheckboxesMap[item.orderID]" :label="`Partia ${num}`"
+                              :value="num" hide-details></v-checkbox>
                           </v-col>
                         </v-row>
                       </td>
@@ -129,12 +129,11 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { reactive, ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLoadingStore } from '@/stores/loading';
 import axios from 'axios';
 
-const progress = ref(0);
 const props = defineProps({
   title: String,
 });
@@ -146,16 +145,24 @@ const shipmentsNum = Array.from({ length: 5 }, (_, i) => ({
   text: i === 0 ? null : (i + 1).toString(),
   value: i === 0 ? null : i + 1
 }));
-const selectedShipmentsNum = ref(null)
-const selectedCheckboxesArr = ref([])
 const toggleDetails = (orderID) => {
   expandedOrderID.value = expandedOrderID.value === orderID ? null : orderID;
 };
+const selectedShipmentsNumMap = reactive({});
+const selectedCheckboxesMap = reactive({});
+const progressMap = reactive({});
+
 const getOrders = async () => {
   loading.start();
   try {
     const response = await axios.get('http://172.16.0.10:3001/endpoints/get_orders')
     ordersData.value = response.data['orders'];
+    ordersData.value.forEach(order => {
+      if (!selectedCheckboxesMap[order.orderID]) {
+        selectedCheckboxesMap[order.orderID] = [];
+      }
+      progressMap[order.orderID] = 0;
+    });
   } catch (error) {
     console.error('Błąd przy pobieraniu zamówień:', error);
     router.push('/error');
@@ -165,27 +172,38 @@ const getOrders = async () => {
   };
 };
 
-watch(selectedShipmentsNum, (newVal) => {
-  console.log(selectedCheckboxesArr.value);
-  selectedCheckboxesArr.value = selectedCheckboxesArr.value.filter(item => item <= newVal);
+ordersData.value.forEach(order => {
+  if (!selectedShipmentsNumMap[order.orderID]) {
+    selectedShipmentsNumMap[order.orderID] = 3; 
+  }
+  if (!selectedCheckboxesMap[order.orderID]) {
+    selectedCheckboxesMap[order.orderID] = [];
+  }
+  progressMap[order.orderID] = 0;
 });
 
-watch(selectedCheckboxesArr, (shipsCalculate) => {
-  setTimeout(() => {
-    const max = selectedShipmentsNum.value;
-    if (!max) {
-      progress.value = 0;
-      return;
-    }
-    const count = shipsCalculate.length > max ? max : shipsCalculate.length;
-    progress.value = Math.round((count / max) * 100);
-  }, 250);
+function updateProgress(orderID) {
+  const max = selectedShipmentsNumMap[orderID] || 1;
+  const checked = selectedCheckboxesMap[orderID]?.length || 0;
+  const count = checked > max ? max : checked;
+  progressMap[orderID] = Math.round((count / max) * 100);
+}
+
+watch(selectedCheckboxesMap, (newVal) => {
+  Object.keys(newVal).forEach(orderID => updateProgress(orderID));
+}, { deep: true });
+
+watch(selectedShipmentsNumMap, (newVal) => {
+  Object.keys(newVal).forEach(orderID => {
+    selectedCheckboxesMap[orderID] = selectedCheckboxesMap[orderID].filter(val => val <= newVal[orderID]);
+    updateProgress(orderID);
+  });
 }, { deep: true });
 
 onMounted(() => {
   getOrders();
-  setTimeout(() => {
-    progress.value = selectedCheckboxesArr.value * 20;
-  }, 500);
+  // setTimeout(() => {
+  //   progress.value = selectedCheckboxesMap.value * 20;
+  // }, 500);
 });
 </script>
