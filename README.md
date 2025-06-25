@@ -5,8 +5,8 @@ Frontend aplikacji e-commerce zbudowany z wykorzystaniem Vue 3, Vuetify, Axios i
 ## Stos technologiczny
 
 - **Vue.js 3** — nowoczesny framework frontendowy, szybki i modularny.
-- **Vuetify 3** — gotowe komponenty UI zgodne z Material Design.
-- **Pinia** — prosty, nowoczesny i typowany menedżer stanu dla Vue.
+- **Vuetify 3** — gotowy framework front-endowy. Wybrałem ze względu na Vue.
+- **Pinia** — prosty, nowoczesny i typowany menedżer stanu dla Vue. Skorzystałem, by wyświetlić ładowanie.
 - **Axios** — klient HTTP do komunikacji z backendem.
 - **Vite** — ultraszybki bundler do projektów frontendowych.
 
@@ -42,7 +42,7 @@ Frontend komunikuje się z backendem za pomocą API i prezentuje dane takie jak:
 
 ### Pytania do menedżera produktu
 
-- Czy produkty mają różne inne warianty do obsługi?
+- Czy produkty mają różne inne warianty do obsługi? Nad jakimi zmianami będziemy pracować?
 - Jakie metody płatności mają być obsługiwane?
-- Czy konieczna jest obsługa zwrotów?
+- Czy konieczne jest wdrożenie obsługi zwrotów?
 - Jakie raporty powinny być dostępne dla administratorów?
