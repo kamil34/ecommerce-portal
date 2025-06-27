@@ -32,7 +32,6 @@
 import { ref } from 'vue';
 
 const navdrawer = ref(true);
-
 const items = ref([
   { icon: 'mdi-home', text: 'Strona główna', link: '/', value: 'home' },
   { icon: 'mdi-account', text: 'Twoje zamówienia', link: '/customer', value: 'customer' },

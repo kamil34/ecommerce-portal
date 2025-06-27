@@ -1,6 +1,5 @@
 <template>
   <v-container class="fill-height" fluid>
-    <div>
       <v-row justify="center">
         <v-col cols="12" md="7">
           <h1 class="text-h2 font-weight-bold text-left mb-4">
@@ -47,7 +46,6 @@
           </v-row>
         </v-col>
       </v-row>
-    </div>
   </v-container>
 </template>
 
@@ -58,8 +56,11 @@ import { useLoadingStore } from '@/stores/loading';
 import axios from 'axios';
 
 const props = defineProps({
-  title: String,
-})
+  title: {
+    type: String,
+    default: "Nasze produkty",
+  }
+});
 const products = ref([]);
 const loading = useLoadingStore()
 const router = useRouter();
@@ -67,14 +68,14 @@ const router = useRouter();
 const getProducts = async () => {
   loading.start();
   try {
-    const response = await axios.get('http://172.16.0.10:3001/endpoints/get_items')
+    const response = await axios.get('http://localhost:3001/endpoints/get_items')
     products.value = response.data['products'];
   } catch (error) {
     console.error('Błąd przy pobieraniu zamówień:', error);
     router.push('/error')
   } finally {
     loading.stop();
-  }
+  };
 };
 
 onMounted(() => {

@@ -3,6 +3,5 @@
 </template>
 
 <script setup>
-//
 const pageTitle = 'Panel dostawcy';
 </script>

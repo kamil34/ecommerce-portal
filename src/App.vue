@@ -9,10 +9,8 @@
 </template>
 
 <script setup>
-//
 import { storeToRefs } from 'pinia';
 import { useLoadingStore } from '@/stores/loading';
 
 const { isLoading } = storeToRefs(useLoadingStore());
-
 </script>

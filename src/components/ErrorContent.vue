@@ -13,7 +13,9 @@
 </template>
 <script setup>
 const props = defineProps({
-    title: String,
-    required: true,
+    title: {
+        type: String,
+        default: "Wystąpił błąd. Odczekaj chwilę i spróbuj ponownie.",
+    }
 });
 </script>

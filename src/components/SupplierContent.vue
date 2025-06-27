@@ -10,57 +10,66 @@
             <v-card class="mx-auto" color="surface-variant" rounded="lg" variant="tonal">
               <v-card-item>
                 <v-card-title>Status zamówienia:</v-card-title>
-                <v-card-text>Otwarte, w trakcie realizacji</v-card-text>
-                <v-card-text class="text-green font-weight-bold">Proces wykończenia zamówienia: {{
-                  progressMap[item.orderID] || 0 }}%</v-card-text>
+                <v-card-text>
+                  {{ item.completed ? 'Zamknięte' : 'Otwarte, w trakcie realizacji' }}
+                </v-card-text>
+                <v-card-text class="text-green font-weight-bold">
+                  Proces realizacji zamówienia: {{ Math.floor(orderProgress(item)) === 100 ? 'Ukończone' :
+                    Math.floor(orderProgress(item)) + '%' }}
+                </v-card-text>
               </v-card-item>
               <v-card-item>
-                <v-progress-linear color="green" rounded :model-value="progressMap[item.orderID] || 0"
-                  :height="10"></v-progress-linear>
+                <v-progress-linear :model-value="animatedProgressMap[item.orderID] || 0" color="green" height="10"
+                  rounded></v-progress-linear>
               </v-card-item>
               <v-card-item>
                 <v-table density="compact">
                   <thead>
                     <tr>
-                      <th class="text-left">
-                        Lp
-                      </th>
-                      <th class="text-left">
-                        Produkt
-                      </th>
-                      <th class="text-left">
-                        Jednostka
-                      </th>
-                      <th class="text-left">
-                        Ilość
-                      </th>
-                      <th class="text-left">
-                        Suma
-                      </th>
-                      <th class="text-left">
-                        Ilość partii (domyślnie 1)
-                      </th>
+                      <th>Lp</th>
+                      <th>Postęp</th>
+                      <th>Produkt</th>
+                      <th>Jednostka</th>
+                      <th>Ilość</th>
+                      <th>Suma</th>
+                      <th>Ilość partii (domyślnie 1)</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr v-for="(product, index) in item.orderedItems" :key="product.id">
                       <td>{{ index + 1 }}</td>
+                      <td>
+                        Potwierdzono: {{ product.confirmed_quantity || 0 }} /
+                        {{ product.quantity }} <br>
+                        Wysłano, ale niepotwierdzone: {{ product.unconfirmed_quantity || 0 }}
+                      </td>
                       <td>{{ product.title }}</td>
                       <td>{{ product.unit }}</td>
                       <td>{{ product.quantity }}</td>
                       <td>90000 zł</td>
                       <td>
-                        <v-row align="center" no-gutters>
-                          <v-col cols="12" md="3">
-                            <v-select :items="shipmentsNum" v-model="selectedShipmentsNumMap[item.orderID]"
-                              item-title="text" item-value="value" variant="solo-filled" dense></v-select>
-                          </v-col>
-                          <v-col cols="12" md="9">
-                            <v-checkbox v-for="num in selectedShipmentsNumMap[item.orderID]" :key="num"
-                              density="compact" v-model="selectedCheckboxesMap[item.orderID]" :label="`Partia ${num}`"
-                              :value="num" hide-details></v-checkbox>
+                        <v-row align="center" justify="start" no-gutters>
+                          <v-col class="my-1" cols="auto" md="auto">
+                            <v-text-field :model-value="shipmentInputs[item.orderID]?.[product.id] || null"
+                              @update:model-value="
+                                val => {
+                                  if (!shipmentInputs[item.orderID]) shipmentInputs[item.orderID] = {};
+                                  shipmentInputs[item.orderID][product.id] = val;
+                                }" @focus="() => {
+                                  expandedOrderID = item.orderID;
+                                  textFieldOrderID = item.orderID;
+                                }" label="Do wysyłki" type="number" density="comfortable" hide-details
+                              :max="remainingToShip(item.orderID, product)" />
                           </v-col>
                         </v-row>
+                      </td>
+                      <td>
+                        <v-btn class="ml-md-4" color="primary" @click="() => {
+                          textFieldOrderID = 0;
+                          sendShipment(item.orderID, product, 'Jan Kowalski');
+                        }
+                        " :disabled="!canShip(item.orderID, product)" hide-details>Wyślij </v-btn>
                       </td>
                     </tr>
                   </tbody>
@@ -68,7 +77,6 @@
               </v-card-item>
               <v-card-item>
                 <v-row class="flex-wrap justify-center pa-0 ma-0">
-                  <v-btn prepend-icon="mdi-check-outline" variant="outlined">Oznacz jako zrealizowane</v-btn>
                 </v-row>
               </v-card-item>
               <v-card-actions class="flex-column">
@@ -85,8 +93,10 @@
                   </v-col>
                   <v-col cols="auto" class="ml-auto">
                     <v-btn :prepend-icon="expandedOrderID === item.orderID ? 'mdi-chevron-down' : 'mdi-cart-outline'"
-                      class="text-grey-darken-4" @click="toggleDetails(item.orderID)"
-                      :disabled="item.orderChanges.length === 0">Szczegóły zamówienia</v-btn>
+                      class="text-grey-darken-4" @click="() => {
+                        toggleDetails(item.orderID)
+                        if (expandedOrderID !== 0) { textFieldOrderID = 0; };
+                      }" :disabled="item.orderChanges.length === 0">Szczegóły zamówienia</v-btn>
                   </v-col>
                   <v-row class="w-100" no-gutters justify="end">
                     <v-col cols="auto">
@@ -97,11 +107,10 @@
               </v-card-actions>
               <v-expand-transition>
                 <div v-show="expandedOrderID === item.orderID">
-                  <v-card-text>
+                  <v-card-text v-if="textFieldOrderID === item.orderID">
                     <v-col cols="12" md="5" class="d-flex align-center">
                       <v-text-field density="comfortable" label="Wprowadź zmiany dla wybranej partii" variant="solo"
-                        hide-details single-line class="flex-grow-1"></v-text-field>
-                      <v-btn class="ml-4" aria-label="Refresh" icon="mdi-check"></v-btn>
+                        v-model="changeText" hide-details single-line class="flex-grow-1" />
                     </v-col>
                   </v-card-text>
                   <v-divider></v-divider>
@@ -113,7 +122,7 @@
                           {{ update.changeText }}
                         </div>
                         <div class="font-weight-normal">
-                          <strong>Jan Kowalski (To be updated)</strong> @{{ update.changeDate }}
+                          <strong>{{ update.changeUser }}</strong> @{{ update.changeDate }}
                         </div>
                       </div>
                     </v-timeline-item>
@@ -129,40 +138,35 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useLoadingStore } from '@/stores/loading';
 import axios from 'axios';
-
+//
 const props = defineProps({
-  title: String,
+  title: {
+    type: String,
+    default: "Panel dostawcy",
+  }
 });
 const ordersData = ref([]);
 const loading = useLoadingStore();
 const router = useRouter();
 const expandedOrderID = ref(null);
-const shipmentsNum = Array.from({ length: 5 }, (_, i) => ({
-  text: i === 0 ? null : (i + 1).toString(),
-  value: i === 0 ? null : i + 1
-}));
+const textFieldOrderID = ref(null);
+const animatedProgressMap = ref({});
+const changeText = ref('');
 const toggleDetails = (orderID) => {
   expandedOrderID.value = expandedOrderID.value === orderID ? null : orderID;
 };
-const selectedShipmentsNumMap = reactive({});
-const selectedCheckboxesMap = reactive({});
-const progressMap = reactive({});
 
 const getOrders = async () => {
   loading.start();
   try {
-    const response = await axios.get('http://172.16.0.10:3001/endpoints/get_orders')
+    const response = await axios.get('http://localhost:3001/endpoints/get_orders')
     ordersData.value = response.data['orders'];
-    ordersData.value.forEach(order => {
-      if (!selectedCheckboxesMap[order.orderID]) {
-        selectedCheckboxesMap[order.orderID] = [];
-      }
-      progressMap[order.orderID] = 0;
-    });
+    // console.log(ordersData.value)
+    syncAnimatedProgress();
   } catch (error) {
     console.error('Błąd przy pobieraniu zamówień:', error);
     router.push('/error');
@@ -172,38 +176,75 @@ const getOrders = async () => {
   };
 };
 
-ordersData.value.forEach(order => {
-  if (!selectedShipmentsNumMap[order.orderID]) {
-    selectedShipmentsNumMap[order.orderID] = 3; 
-  }
-  if (!selectedCheckboxesMap[order.orderID]) {
-    selectedCheckboxesMap[order.orderID] = [];
-  }
-  progressMap[order.orderID] = 0;
-});
+const shipmentInputs = ref({});
 
-function updateProgress(orderID) {
-  const max = selectedShipmentsNumMap[orderID] || 1;
-  const checked = selectedCheckboxesMap[orderID]?.length || 0;
-  const count = checked > max ? max : checked;
-  progressMap[orderID] = Math.round((count / max) * 100);
-}
+const sendShipment = async (orderID, product, changeUser) => {
+  const qty = shipmentInputs.value[orderID]?.[product.id] || 0;
 
-watch(selectedCheckboxesMap, (newVal) => {
-  Object.keys(newVal).forEach(orderID => updateProgress(orderID));
-}, { deep: true });
+  if (qty <= 0) return;
 
-watch(selectedShipmentsNumMap, (newVal) => {
-  Object.keys(newVal).forEach(orderID => {
-    selectedCheckboxesMap[orderID] = selectedCheckboxesMap[orderID].filter(val => val <= newVal[orderID]);
-    updateProgress(orderID);
+  try {
+    await axios.post('http://localhost:3001/endpoints/report_shipment', {
+      orderID,
+      productID: product.id,
+      quantity: qty,
+      changeUser: changeUser,
+      changeText: changeText.value,
+    });
+    await getOrders();
+    shipmentInputs.value[orderID][product.id] = 0;
+  } catch (error) {
+    // console.log(changeUser, changeText.value);
+    console.error('Błąd przy wysyłaniu partii:', error);
+    router.push('/error')
+  };
+};
+
+const remainingToShip = (orderID, product) => {
+  const ordered = product.quantity;
+  const confirmed = product.confirmed_quantity || 0;
+  const unconfirmed = product.unconfirmed_quantity || 0;
+  return ordered - confirmed - unconfirmed;
+};
+
+const canShip = (orderID, product) => {
+  const qty = shipmentInputs.value[orderID]?.[product.id] || 0;
+  return qty > 0 && qty <= remainingToShip(orderID, product);
+};
+const syncAnimatedProgress = () => {
+  ordersData.value.forEach(order => {
+    animatedProgressMap.value[order.orderID] = 0;
   });
-}, { deep: true });
 
+  setTimeout(() => {
+    ordersData.value.forEach(order => {
+      const progress = orderProgress(order);
+      animatedProgressMap.value[order.orderID] = progress;
+    });
+  }, 350);
+};
+
+const orderProgress = (order) => {
+  let totalQty = 0;
+  let confirmedQty = 0;
+  let shippedQty = 0;
+
+  order.orderedItems.forEach(product => {
+    const quantity = product.quantity || 0;
+    const confirmed = product.confirmed_quantity || 0;
+    const unconfirmed = product.unconfirmed_quantity || 0;
+
+    totalQty += quantity;
+    confirmedQty += confirmed;
+    shippedQty += confirmed + unconfirmed;
+  });
+
+  const customerProgress = confirmedQty / totalQty;
+  const supplierProgress = shippedQty / totalQty;
+
+  return ((customerProgress + supplierProgress) / 2) * 100;
+};
 onMounted(() => {
   getOrders();
-  // setTimeout(() => {
-  //   progress.value = selectedCheckboxesMap.value * 20;
-  // }, 500);
 });
 </script>

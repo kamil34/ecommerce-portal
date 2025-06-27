@@ -3,6 +3,5 @@
 </template>
 
 <script setup>
-//
-const pageTitle = 'Wystąpił błąd';
+const pageTitle = 'Wystąpił błąd. Odczekaj chwilę i spróbuj ponownie.';
 </script>

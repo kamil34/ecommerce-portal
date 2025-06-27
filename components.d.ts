@@ -10,6 +10,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     AppFooter: typeof import('./src/components/AppFooter.vue')['default']
     AppNavbars: typeof import('./src/components/AppNavbars.vue')['default']
+    copy: typeof import('./src/components/SupplierContent copy.vue')['default']
     CustomerCart: typeof import('./src/components/CustomerCart.vue')['default']
     CustomerContent: typeof import('./src/components/CustomerContent.vue')['default']
     ErrorContent: typeof import('./src/components/ErrorContent.vue')['default']
